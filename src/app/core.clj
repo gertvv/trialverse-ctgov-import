@@ -11,17 +11,67 @@
 (defn spo-each [subj pred obj*]
   (reduce (fn [subj obj] (trig/spo subj [pred obj])) subj obj*))
 
+; probe the outcome for measurement properties
+(defn outcome-measurement-properties
+  [xml]
+  (let [measures-xml (vtd/at xml "./measure_list")
+        measure-count (count (vtd/children measures-xml))
+        measure-xml (vtd/last-child measures-xml)
+        categories-xml (vtd/at measure-xml "./category_list")
+        category-count (count (vtd/children categories-xml))
+        category-xml (vtd/first-child categories-xml)
+        ; probe the measure for type: <param> and <dispersion>, plus <units>
+        param (vtd/text (vtd/at measure-xml "./param"))
+        dispersion (vtd/text (vtd/at measure-xml "./dispersion"))
+        units (vtd/text (vtd/at measure-xml "./units"))]
+      { :simple (= 1 category-count)
+        :param param
+        :dispersion dispersion
+        :units units
+        :unit-of-analysis (= 3 measure-count) }))
+
+; determine results properties from the measurement properties
+(defn outcome-results-properties
+  [props]
+  (concat
+    (if (= "Mean" (:param props)) {"mean" "value"})
+    (if (= "Median" (:param props)) {"median" "value"})
+    (if (= "Number" (:param props)) {"count" "value"}) ; FIXME: or percentage
+    (if (= "Geometric Mean" (:param props)) {"geometric_mean" "value"}) ; FIXME: ad to ontology?
+    (if (= "Log Mean" (:param props)) {"log_mean" "value"}) ; FIXME: add to ontology?
+    (if (= "Least Squares Mean" (:param props)) {"least_squares_mean" "value"}) ; FIXME: add to ontology?
+    (if (= "90% Confidence Interval" (:dispersion props)) {"quantile_0.05" "lower_limit"
+                                                           "quantile_0.95" "upper_limit"})
+    (if (= "95% Confidence Interval" (:dispersion props)) {"quantile_0.025" "lower_limit"
+                                                           "quantile_0.975" "upper_limit"})
+    (if (= "Full Range" (:dispersion props)) {"min" "lower_limit"
+                                              "max" "upper_limit"})
+    (if (= "Geometric Coefficient of Variation" (:dispersion props)) {"geometric_coefficient_of_variation" "spread"}) ; FIXME: add to ontology?
+    (if (= "Inter-Quartile Range" (:dispersion props)) {"first_quartile" "lower_limit"
+                                                        "third_quartile" "upper_limit"})
+    (if (= "Standard Deviation" (:dispersion props)) {"standard_deviation" "spread"})
+    (if (= "Standard Error" (:dispersion props)) {"standard_error" "spread"})))
+
+(defn outcome-measurement-type
+  [props]
+  (if (= "Number" (:param props)) "dichotomous" "continuous"))
+
 (defn outcome-rdf
   [xml idx outcome-uris mm-uris]
-  (let [uri (outcome-uris [:outcome idx])]
-    (trig/spo uri
-              [(trig/iri :rdf "type") (trig/iri :ontology "Endpoint")]
-              [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "./title")))]
-              [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "./description")))]
-              [(trig/iri :ontology "is_measured_at") (mm-uris [:outcome idx])]
-              [(trig/iri :ontology "has_result_property") (trig/iri :ontology "sample_size")] ; FIXME
-              [(trig/iri :ontology "of_variable")
-               (trig/_po [(trig/iri :ontology "measurementType") (trig/iri :ontology "continuous")])]))) ; FIXME
+  (let [uri (outcome-uris [:outcome idx])
+        props (outcome-measurement-properties xml)
+        properties (outcome-results-properties props)]
+    (spo-each
+     (trig/spo uri
+      [(trig/iri :rdf "type") (trig/iri :ontology "Endpoint")]
+      [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "./title")))]
+      [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "./description")))]
+      [(trig/iri :ontology "is_measured_at") (mm-uris [:outcome idx])]
+      [(trig/iri :ontology "has_result_property") (trig/iri :ontology "sample_size")]
+      [(trig/iri :ontology "of_variable")
+      (trig/_po [(trig/iri :ontology "measurementType") (trig/iri :ontology (outcome-measurement-type props))])])
+     (trig/iri :ontology "has_result_property")
+     (map #(trig/iri :ontology %) (keys properties)))))
 
 (defn group-rdf
   [group-uri group-info]
@@ -35,14 +85,14 @@
   [xml]
   (into {} (map (fn [ag idx] [[:arm_group idx]
                               {:title (vtd/text (vtd/at ag "./arm_group_label"))
-                               :description (vtd/text (vtd/at ag "./description"))}])
+                               :description (or (vtd/text (vtd/at ag "./description")) "")}])
                 (vtd/search xml "/clinical_study/arm_group")
                 (iterate inc 1))))
 
 (defn group-info
   [group-xml]
   {:title (vtd/text (vtd/at group-xml "./title"))
-   :description (vtd/text (vtd/at group-xml "./description"))})
+   :description (or (vtd/text (vtd/at group-xml "./description")) "")})
 
 (defn find-baseline-groups
   [xml]
@@ -102,7 +152,7 @@
 
 (defn find-event-time-frame
   [xml]
-  { [:events] (vtd/text (vtd/at xml "/clinical_study/clinical_results/reported_events/time_frame")) })
+  { [:events] (or (vtd/text (vtd/at xml "/clinical_study/clinical_results/reported_events/time_frame")) "Unknown") })
 
 (defn find-outcome-time-frames
   [xml]
@@ -129,19 +179,25 @@
 
 (defn measurement-data-rdf
   [subj xml group-id]
-  (let [measure-xml (vtd/at xml "./measure_list")
-        measure-count (count (vtd/search measure-xml "./measure"))
+  (let [measures-xml (vtd/at xml "./measure_list")
+        measure-count (count (vtd/search measures-xml "./measure"))
         sample-size-xml (if (= 3 measure-count)
-                          (vtd/next-sibling (vtd/first-child measure-xml))
-                          (vtd/first-child measure-xml))
-        results-xml (vtd/last-child measure-xml)
-        categories-xml (vtd/at results-xml "./category_list")
+                          (vtd/next-sibling (vtd/first-child measures-xml))
+                          (vtd/first-child measures-xml))
+        measure-xml (vtd/last-child measures-xml)
+        categories-xml (vtd/at measure-xml "./category_list")
         category-count (count (vtd/children categories-xml))
         category-xml (vtd/first-child categories-xml)
         measurements-xml (vtd/at category-xml "./measurement_list")
         measurement-query (format "./category_list/category/measurement_list/measurement[@group_id=\"%s\"]" group-id)
-        sample-size (vtd/at sample-size-xml measurement-query)]
-    (trig/spo subj [(trig/iri :ontology "sample_size") (trig/lit (Integer. (vtd/attr sample-size :value)))])))
+        sample-size (vtd/at sample-size-xml measurement-query)
+        measurement-xml (vtd/at measurements-xml (format "./measurement[@group-id=\"%s\"]" group-id))
+        props (outcome-measurement-properties xml)
+        properties (outcome-results-properties props)]
+    (reduce #(trig/spo %1 [(trig/iri :ontology (first %2)) (trig/lit (vtd/attr measurement-xml (second %2)))])
+      (trig/spo subj [(trig/iri :ontology "sample_size") (trig/lit (Integer. (vtd/attr sample-size :value)))])
+      properties)
+))
 
 
 (defn outcome-measurements
