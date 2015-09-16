@@ -252,7 +252,11 @@
         study-rdf (-> uri
                      (trig/spo [(trig/iri :rdf "type") (trig/iri :ontology "Study")]
                                [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "/clinical_study/brief_title")))]
-                               [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/official_title")))])
+                               [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/official_title")))]
+                               [(trig/iri :ontology "has_objective")
+                                (trig/_po [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/brief_summary/textblock")))])]
+                               [(trig/iri :ontology "has_eligibility_criteria")
+                                (trig/_po [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/eligibility/criteria/textblock")))])])
                      (spo-each (trig/iri :ontology "has_outcome") (vals outcome-uris))
                      (spo-each (trig/iri :ontology "has_arm") (keys group-info)))
         triples (concat [study-rdf] mms-rdf outcomes-rdf groups-rdf measurements-rdf)]
