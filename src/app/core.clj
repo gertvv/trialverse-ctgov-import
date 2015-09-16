@@ -62,16 +62,16 @@
         props (outcome-measurement-properties xml)
         properties (outcome-results-properties props)]
     (spo-each
-     (trig/spo uri
-      [(trig/iri :rdf "type") (trig/iri :ontology "Endpoint")]
-      [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "./title")))]
-      [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "./description")))]
-      [(trig/iri :ontology "is_measured_at") (mm-uris [:outcome idx])]
-      [(trig/iri :ontology "has_result_property") (trig/iri :ontology "sample_size")]
-      [(trig/iri :ontology "of_variable")
-      (trig/_po [(trig/iri :ontology "measurementType") (trig/iri :ontology (outcome-measurement-type props))])])
-     (trig/iri :ontology "has_result_property")
-     (map #(trig/iri :ontology %) (keys properties)))))
+      (trig/spo uri
+                [(trig/iri :rdf "type") (trig/iri :ontology "Endpoint")]
+                [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "./title")))]
+                [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "./description")))]
+                [(trig/iri :ontology "is_measured_at") (mm-uris [:outcome idx])]
+                [(trig/iri :ontology "has_result_property") (trig/iri :ontology "sample_size")]
+                [(trig/iri :ontology "of_variable")
+                 (trig/_po [(trig/iri :ontology "measurementType") (trig/iri :ontology (outcome-measurement-type props))])])
+      (trig/iri :ontology "has_result_property")
+      (map #(trig/iri :ontology %) (keys properties)))))
 
 (defn group-rdf
   [group-uri group-info]
@@ -177,6 +177,26 @@
               [(trig/iri :ontology "of_arm") group-uri]
               [(trig/iri :ontology "of_moment") mm-uri])))
 
+(defn parse-int
+  [s]
+  (try (Integer. s)
+       (catch Exception e
+         nil)))
+
+(defn parse-double
+  [s]
+  (try (Double. s)
+       (catch Exception e
+         nil)))
+
+(defn measurement-value
+  [subj xml prop attr]
+  (let [value-str (vtd/attr xml attr)
+        value (if (or (= "count" prop) (= "sample_size" prop)) (parse-int value-str) (parse-double value-str))]
+    (if value
+      (trig/spo subj [(trig/iri :ontology prop) (trig/lit value)])
+      subj)))
+
 (defn measurement-data-rdf
   [subj xml group-id]
   (let [measures-xml (vtd/at xml "./measure_list")
@@ -191,13 +211,12 @@
         measurements-xml (vtd/at category-xml "./measurement_list")
         measurement-query (format "./category_list/category/measurement_list/measurement[@group_id=\"%s\"]" group-id)
         sample-size (vtd/at sample-size-xml measurement-query)
-        measurement-xml (vtd/at measurements-xml (format "./measurement[@group-id=\"%s\"]" group-id))
+        measurement-xml (vtd/at measurements-xml (format "./measurement[@group_id=\"%s\"]" group-id))
         props (outcome-measurement-properties xml)
         properties (outcome-results-properties props)]
-    (reduce #(trig/spo %1 [(trig/iri :ontology (first %2)) (trig/lit (vtd/attr measurement-xml (second %2)))])
-      (trig/spo subj [(trig/iri :ontology "sample_size") (trig/lit (Integer. (vtd/attr sample-size :value)))])
-      properties)
-))
+    (reduce #(measurement-value %1 measurement-xml (first %2) (second %2))
+            (measurement-value subj sample-size "sample_size" "value")
+            properties)))
 
 
 (defn outcome-measurements
@@ -205,8 +224,7 @@
   (let [group-id-query "./measure_list/measure/category_list/category/measurement_list/measurement/@group_id"
         groups (set (map vtd/text (vtd/search xml group-id-query)))
         m-meta (into {} (map (fn [g] [g (measurement-meta-rdf (trig/iri :instance (uuid)) xml idx g outcome-uris group-uris mm-uris)]) groups))]
-    (map (fn [[g s]] (measurement-data-rdf s xml g)) m-meta)
-    ))
+    (map (fn [[g s]] (measurement-data-rdf s xml g)) m-meta)))
 
 (defn ctgov-import
   [xml]
