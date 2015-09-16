@@ -214,9 +214,11 @@
         measurement-xml (vtd/at measurements-xml (format "./measurement[@group_id=\"%s\"]" group-id))
         props (outcome-measurement-properties xml)
         properties (outcome-results-properties props)]
-    (reduce #(measurement-value %1 measurement-xml (first %2) (second %2))
-            (measurement-value subj sample-size "sample_size" "value")
-            properties)))
+    (if (:simple props)
+      (reduce #(measurement-value %1 measurement-xml (first %2) (second %2))
+              (measurement-value subj sample-size "sample_size" "value")
+              properties)
+      subj)))
 
 
 (defn outcome-measurements
