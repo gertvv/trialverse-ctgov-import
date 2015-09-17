@@ -30,14 +30,32 @@
         :units units
         :unit-of-analysis (= 3 measure-count) }))
 
+(defn string-starts-with-any
+  [s words]
+  (some #(.startsWith s %) words))
+
+(defn is-proportion-outcome
+  [props]
+  (and (= "Number" (:param props)) (string-starts-with-any (lower-case (:units props)) ["proportion"])))
+
+(defn is-percent-outcome
+  [props]
+  (and (= "Number" (:param props)) (string-starts-with-any (lower-case (:units props)) ["percent" "percentage" "percentages" "%" "observed percentage"])))
+
+(defn is-count-outcome
+  [props]
+  (and (= "Number" (:param props)) (not (is-percent-outcome props)) (not (is-proportion-outcome props))))
+
 ; determine results properties from the measurement properties
 (defn outcome-results-properties
   [props]
   (concat
     (if (= "Mean" (:param props)) {"mean" "value"})
     (if (= "Median" (:param props)) {"median" "value"})
-    (if (= "Number" (:param props)) {"count" "value"}) ; FIXME: or percentage
-    (if (= "Geometric Mean" (:param props)) {"geometric_mean" "value"}) ; FIXME: ad to ontology?
+    (if (is-count-outcome props) {"count" "value"})
+    (if (is-percent-outcome props) {"percentage" "value"}) ; FIXME: add to ontology?
+    (if (is-proportion-outcome props) {"proportion" "value"}) ; FIXME: add to ontology?
+    (if (= "Geometric Mean" (:param props)) {"geometric_mean" "value"}) ; FIXME: add to ontology?
     (if (= "Log Mean" (:param props)) {"log_mean" "value"}) ; FIXME: add to ontology?
     (if (= "Least Squares Mean" (:param props)) {"least_squares_mean" "value"}) ; FIXME: add to ontology?
     (if (= "90% Confidence Interval" (:dispersion props)) {"quantile_0.05" "lower_limit"
