@@ -114,7 +114,7 @@
       (trig/spo uri
                 [(trig/iri :rdf "type") (trig/iri :ontology "Endpoint")]
                 [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "./title")))]
-                [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "./description")))]
+                [(trig/iri :rdfs "comment") (trig/lit (or (vtd/text (vtd/at xml "./description")) ""))]
                 [(trig/iri :ontology "is_measured_at") (mm-uris [:outcome idx])]
                 [(trig/iri :ontology "has_result_property") (trig/iri :ontology "sample_size")]
                 [(trig/iri :ontology "of_variable")
