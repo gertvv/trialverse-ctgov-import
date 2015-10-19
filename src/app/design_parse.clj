@@ -10,7 +10,7 @@
      colon = ': '
      val = valstr spec?
      <spec> = <' ('> valstr (<sep> valstr)* <')'>
-     <valstr> = #'[\\w ]*\\w'"))
+     <valstr> = #'[\\w/ ]*\\w'"))
 
 (defn parse [the-str]
   (design the-str))

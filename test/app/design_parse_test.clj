@@ -2,10 +2,6 @@
   (:use clojure.test)
   (:use app.design-parse))
 
-(defn masking
-  [x]
-  (first (filter #(= [:key "Masking"] (second %)) (rest x))))
-
 (deftest example1
   (is (= (parse "Allocation: Randomized, Intervention Model: Parallel Assignment, Masking: Double Blind (Subject, Caregiver, Investigator, Outcomes Assessor), Primary Purpose: Treatment")
          [:design
@@ -51,3 +47,11 @@
           [:keyval [:key "Intervention Model"] [:val "Factorial Assignment"]]
           [:keyval [:key "Masking"] [:val "Single Blind" "Outcomes Assessor"]]
           [:keyval [:key "Primary Purpose"] [:val "Treatment"]]])))
+
+(deftest example6
+  (is (= (design-as-map "Allocation: Randomized, Endpoint Classification: Safety/Efficacy Study, Intervention Model: Parallel Assignment, Masking: Double Blind (Subject, Caregiver, Investigator), Primary Purpose: Treatment")
+         {"Allocation" ["Randomized"]
+          "Endpoint Classification" ["Safety/Efficacy Study"]
+          "Intervention Model" ["Parallel Assignment"]
+          "Masking" ["Double Blind" "Subject" "Caregiver" "Investigator"]
+          "Primary Purpose" ["Treatment"]})))
