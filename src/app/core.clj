@@ -12,6 +12,21 @@
 (defn spo-each [subj pred obj*]
   (reduce (fn [subj obj] (trig/spo subj [pred obj])) subj obj*))
 
+(defn row-label-sample-size
+  [label]
+  (let [m (re-find #"(?i)\Wn\s*=\s*(\d*)([,;]\s*(\d*))*" label)
+        s (map #(Integer/parseInt %) (remove nil? (take-nth 2 (rest m))))]
+    s))
+
+(defn measurement-row-info
+  [xml row-title]
+  (let [group-ids (map #(vtd/attr % "group_id") (vtd/search xml "./group_list/group"))
+        sample-size-guess (row-label-sample-size row-title)
+        sample-size (if (and sample-size-guess (= (count sample-size-guess) (count group-ids)))
+                        (zipmap group-ids sample-size-guess)
+                        {})]
+    { :title row-title :sample-size sample-size }))
+
 ; probe the outcome for measurement properties
 (defn outcome-measurement-properties
   [xml]
@@ -20,12 +35,14 @@
         measure-xml (vtd/last-child measures-xml)
         categories-xml (vtd/at measure-xml "./category_list")
         category-count (count (vtd/children categories-xml))
+        category-info (map #(measurement-row-info xml (vtd/text %)) (vtd/search categories-xml "./category/sub_title"))
         category-xml (vtd/first-child categories-xml)
         ; probe the measure for type: <param> and <dispersion>, plus <units>
         param (vtd/text (vtd/at measure-xml "./param"))
         dispersion (vtd/text (vtd/at measure-xml "./dispersion"))
         units (vtd/text (vtd/at measure-xml "./units"))]
       { :simple (= 1 category-count)
+        :categories category-info
         :param param
         :dispersion dispersion
         :units units
@@ -245,10 +262,10 @@
 
 (defn measurement-meta-rdf
   [subj outcome-uri group-uri mm-uri]
-    (trig/spo subj
-              [(trig/iri :ontology "of_outcome") outcome-uri]
-              [(trig/iri :ontology "of_arm") group-uri]
-              [(trig/iri :ontology "of_moment") mm-uri]))
+  (trig/spo subj
+            [(trig/iri :ontology "of_outcome") outcome-uri]
+            [(trig/iri :ontology "of_arm") group-uri]
+            [(trig/iri :ontology "of_moment") mm-uri]))
 
 (defn parse-int
   [s]
@@ -275,6 +292,7 @@
 ;      ontology:count "43"
 ;    ] .
 
+
 (defn measurement-data-rdf-basic
   [subj properties sample-size-xml measure-xml group-id]
   (let [measurement-query (format "./category_list/category/measurement_list/measurement[@group_id=\"%s\"]" group-id)
@@ -294,8 +312,30 @@
             subj
             categories-xml)))
 
+(defn measurement-data-row-rdf
+  [measure-xml group-id m-meta props row-info sample-size-xml]
+  (let [measurement-xml (vtd/at measure-xml (format "./category_list/category/sub_title[text()=\"%s\"]/../measurement_list/measurement[@group_id=\"%s\"]" (:title row-info) group-id))
+        subj (trig/spo (trig/iri :instance (uuid))
+                       [(trig/iri :ontology "of_outcome") (:outcome m-meta)]
+                       [(trig/iri :ontology "of_arm") (:group m-meta)]
+                       [(trig/iri :rdfs "comment") (trig/lit (:title row-info))])
+        row-specific ((:sample-size row-info) group-id)
+        subj-with-sample-size (if (nil? row-specific)
+                                  (measurement-value subj sample-size-xml "sample_size" "value")
+                                  (trig/spo subj [(trig/iri :ontology "sample_size") row-specific])) 
+        properties (outcome-results-properties props)]
+    (reduce #(measurement-value %1 measurement-xml (first %2) (second %2))
+            subj-with-sample-size
+            properties)))
+
+(defn measurement-data-rdf-complex
+  [props sample-size-xml measure-xml group-id m-meta]
+  (let [measurement-query (format "./category_list/category/measurement_list/measurement[@group_id=\"%s\"]" group-id)
+        sample-size (vtd/at sample-size-xml measurement-query)]
+  (map #(measurement-data-row-rdf measure-xml group-id m-meta props % sample-size) (:categories props))))
+
 (defn outcome-measurement-data-rdf
-  [subj xml group-id]
+  [xml group-id m-meta]
   (let [measures-xml (vtd/at xml "./measure_list")
         measure-count (count (vtd/search measures-xml "./measure"))
         sample-size-xml (if (= 3 measure-count)
@@ -305,18 +345,19 @@
         props (outcome-measurement-properties xml)
         properties (outcome-results-properties props)]
     (if (:simple props)
-      (measurement-data-rdf-basic subj properties sample-size-xml measure-xml group-id)
-      subj)))
+      [(measurement-data-rdf-basic
+         (measurement-meta-rdf (trig/iri :instance (uuid)) (:outcome m-meta) (:group m-meta) (:mm m-meta))
+         properties sample-size-xml measure-xml group-id)]
+      (measurement-data-rdf-complex props sample-size-xml measure-xml group-id m-meta))))
 
 (defn outcome-measurements
   [xml idx outcome-uris group-uris mm-uris]
   (let [group-id-query "./measure_list/measure/category_list/category/measurement_list/measurement/@group_id"
         groups (set (map vtd/text (vtd/search xml group-id-query)))
-        m-meta (into {} (map (fn [g] [g (measurement-meta-rdf (trig/iri :instance (uuid)) 
-                                                              (outcome-uris [:outcome idx])
-                                                              (group-uris [:outcome_group idx g])
-                                                              (mm-uris [:outcome idx]))]) groups))]
-    (map (fn [[g s]] (outcome-measurement-data-rdf s xml g)) m-meta)))
+        m-meta (into {} (map (fn [g] [g { :outcome (outcome-uris [:outcome idx])
+                                          :group (group-uris [:outcome_group idx g])
+                                          :mm (mm-uris [:outcome idx]) }]) groups))]
+    (apply concat (map (fn [[g m]] (outcome-measurement-data-rdf xml g m)) m-meta))))
 
 (defn baseline-measurement-data-rdf
   [subj measure-xml sample-size-xml group-id]
