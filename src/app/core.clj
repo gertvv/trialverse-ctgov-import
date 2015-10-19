@@ -3,6 +3,7 @@
     [clojure.java.io :refer [as-file]]
     [clojure.string :refer [lower-case]]
     [clojure.set :refer [map-invert]]
+    [app.design-parse :refer [design-as-map]]
     [riveted.core :as vtd]
     [org.drugis.addis.rdf.trig :as trig]))
 
@@ -357,6 +358,21 @@
             (group-uris [:events_group %])
             (mm-uris [:events])) groups)))
 
+(defn allocation-rdf [subj allocation]
+  (if allocation
+    (trig/spo subj [(trig/iri :ontology "has_allocation")
+                    (if (= "Randomized" (first allocation))
+                      (trig/iri :ontology "AllocationRandomized")
+                      (trig/iri :ontology "AllocationNonRandomized"))])
+    subj))
+
+
+(defn blinding-rdf [subj blinding]
+  (if blinding
+    (trig/spo subj [(trig/iri :ontology "has_blinding")
+                    (trig/iri :ontology (clojure.string/replace (first blinding) " " ""))])
+    subj))
+
 (defn ctgov-import
   [xml]
   (let [prefixes {:rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -389,6 +405,7 @@
                            (apply concat (map #(baseline-measurements %1 %2 baseline-sample-size-xml baseline-uris group-uris mm-uris) baseline-var-xml (iterate inc 1)))
                            (apply concat (map #(outcome-measurements %1 %2 outcome-uris group-uris mm-uris) outcome-xml (iterate inc 1)))
                            (apply concat (map #(event-measurements %1 %2 event-uris group-uris mm-uris) event-xml (iterate inc 1))))
+        design (design-as-map (vtd/text (vtd/at xml "/clinical_study/study_design")))
         study-rdf (-> uri
                      (trig/spo [(trig/iri :rdf "type") (trig/iri :ontology "Study")]
                                [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "/clinical_study/brief_title")))]
@@ -397,6 +414,9 @@
                                 (trig/_po [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/brief_summary/textblock")))])]
                                [(trig/iri :ontology "has_eligibility_criteria")
                                 (trig/_po [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/eligibility/criteria/textblock")))])])
+
+                     (allocation-rdf (design "Allocation"))
+                     (blinding-rdf (design "Masking"))
                      (spo-each (trig/iri :ontology "has_outcome") (vals outcome-uris))
                      (spo-each (trig/iri :ontology "has_arm") (keys group-info)))
         triples (concat [study-rdf] mms-rdf baseline-rdf outcomes-rdf events-rdf groups-rdf measurements-rdf)]

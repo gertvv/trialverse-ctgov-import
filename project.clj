@@ -5,5 +5,6 @@
             :url "https://www.gnu.org/licenses/gpl-3.0.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [riveted "0.0.9"]
+                 [instaparse "1.4.1"]
                  [addis-rdf "0.1.0-SNAPSHOT"]]
   :main app.core)
