@@ -171,7 +171,7 @@
   (trig/spo group-uri
             [(trig/iri :rdfs "label") (trig/lit (:title group-info))]
             [(trig/iri :rdfs "comment") (trig/lit (:description group-info))]
-            [(trig/iri :rdf "type") (trig/iri :ontology "Arm")])) ; FIXME
+            [(trig/iri :rdf "type") (trig/iri :ontology "Group")]))
 
 
 (defn find-arm-groups
@@ -264,7 +264,7 @@
   [subj outcome-uri group-uri mm-uri]
   (trig/spo subj
             [(trig/iri :ontology "of_outcome") outcome-uri]
-            [(trig/iri :ontology "of_arm") group-uri]
+            [(trig/iri :ontology "of_group") group-uri]
             [(trig/iri :ontology "of_moment") mm-uri]))
 
 (defn parse-int
@@ -317,7 +317,7 @@
   (let [measurement-xml (vtd/at measure-xml (format "./category_list/category/sub_title[text()=\"%s\"]/../measurement_list/measurement[@group_id=\"%s\"]" (:title row-info) group-id))
         subj (trig/spo (trig/iri :instance (uuid))
                        [(trig/iri :ontology "of_outcome") (:outcome m-meta)]
-                       [(trig/iri :ontology "of_arm") (:group m-meta)]
+                       [(trig/iri :ontology "of_group") (:group m-meta)]
                        [(trig/iri :rdfs "comment") (trig/lit (:title row-info))])
         row-specific ((:sample-size row-info) group-id)
         subj-with-sample-size (if (nil? row-specific)
@@ -382,7 +382,7 @@
   [xml event-uri group-uri mm-uri]
   (let [m-meta (trig/spo (trig/iri :instance (uuid))
                          [(trig/iri :ontology "of_outcome") event-uri]
-                         [(trig/iri :ontology "of_arm") group-uri]
+                         [(trig/iri :ontology "of_group") group-uri]
                          [(trig/iri :ontology "of_moment") mm-uri])
         properties {"count" "subjects_affected"
                     "event_count" "events"
