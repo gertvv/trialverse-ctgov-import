@@ -6,11 +6,11 @@
     "design = keyval (<sep> keyval)*
      sep = ', '
      keyval = key <colon> val
-     key = #'[\\w ]*\\w'
+     key = #'[\\w -]*\\w'
      colon = ': '
      val = valstr spec?
      <spec> = <' ('> valstr (<sep> valstr)* <')'>
-     <valstr> = #'[\\w/ ]*\\w'"))
+     <valstr> = #'[\\w/ -]*\\w'"))
 
 (defn parse [the-str]
   (design the-str))
