@@ -4,11 +4,35 @@ Import of ClinicalTrials.gov records into TrialVerse / ADDIS RDF format.
 
 ## Usage
 
+Dependencies:
+
+You need to `lein install` the `addis-rdf` module from `addis-core`, in `trialverse/addis-rdf`.
+
+Command line conversion of ClinicalTrials.gov XML:
+
 `lein run $FILE`
+
+Web service:
+
+`lein ring server`
+
+Build an uberjar for the webservice:
+
+`lein ring uberjar`
+
+Build and run in docker:
+
+```
+lein ring uberjar
+cp target/ctgov-import-*-standalone.jar docker/
+cd docker
+docker build -d ctgov-import .
+docker run -d -p 3000:3000 ctgov-import
+```
 
 ## License
 
-Copyright (c) 2014 Gert van Valkenhoef
+Copyright (c) 2014-2016 Gert van Valkenhoef
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
