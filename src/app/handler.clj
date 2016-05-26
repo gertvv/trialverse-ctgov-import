@@ -58,6 +58,8 @@
           (throw e))))))
 
 (defroutes app-routes
+  (GET "/" [id] { :status 200
+                  :body "Go to /NCTXXXXXXXX." })
   (GET "/:id" [id] { :status 200
                      :headers { "Content-Type" "application/json" }
                      :body (json/write-str (basic-info id))})
