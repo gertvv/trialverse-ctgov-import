@@ -13,7 +13,9 @@
      <valstr> = #'[\\w/ -]*\\w'"))
 
 (defn parse [the-str]
-  (design the-str))
+  (if (= "N/A" the-str)
+    [:design]
+    (design the-str)))
 
 (defn design-as-map [the-str]
   (into {} (map (fn [x] [(second (second x)) (rest (nth x 2))]) (rest (parse the-str)))))
