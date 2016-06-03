@@ -423,10 +423,18 @@
                   :qudt "http://qudt.org/schema/qudt#"
                   :ontology "http://trials.drugis.org/ontology#"
                   :study "http://trials.drugis.org/studies/"
+                  :ictrp "http://trials.drugis.org/ictrp-id/"
                   :instance "http://trials.drugis.org/instances/"
                   :entity "http://trials.drugis.org/entities/"
-                  :dc "http://purl.org/dc/elements/1.1/"}
-        uri (trig/iri :study (vtd/text (vtd/at xml "/clinical_study/id_info/nct_id")))
+                  :dc "http://purl.org/dc/elements/1.1/"
+                  :bibo "http://purl.org/ontology/bibo/"}
+        nct-id (vtd/text (vtd/at xml "/clinical_study/id_info/nct_id"))
+        uri (trig/iri :study nct-id)
+        reg-uri (trig/iri :ictrp nct-id)
+        registration (trig/spo reg-uri
+                               [(trig/iri :ontology "registry") (trig/iri "http://trials.drugis.org/registries#ClinicalTrials.gov")]
+                               [(trig/iri :ontology "registration_id") (trig/lit nct-id)]
+                               [(trig/iri :bibo "uri") (str "https://clinicaltrials.gov/show/" nct-id)])
         [mm-uris mm-info] (find-measurement-moments xml)
         outcome-xml (vtd/search xml "/clinical_study/clinical_results/outcome_list/outcome")
         outcome-uris (into {} (map #(vector [:outcome %2] (trig/iri :instance (uuid))) outcome-xml (iterate inc 1)))
@@ -448,7 +456,8 @@
                            (apply concat (map #(event-measurements %1 %2 event-uris group-uris mm-uris) event-xml (iterate inc 1))))
         design (design-as-map (vtd/text (vtd/at xml "/clinical_study/study_design")))
         study-rdf (-> uri
-                     (trig/spo [(trig/iri :rdf "type") (trig/iri :ontology "Study")]
+                     (trig/spo [(trig/iri :ontology "has_publication") reg-uri]
+                               [(trig/iri :rdf "type") (trig/iri :ontology "Study")]
                                [(trig/iri :rdfs "label") (trig/lit (vtd/text (vtd/at xml "/clinical_study/brief_title")))]
                                [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/official_title")))]
                                [(trig/iri :ontology "has_objective")
@@ -460,7 +469,7 @@
                      (blinding-rdf (design "Masking"))
                      (spo-each (trig/iri :ontology "has_outcome") (vals outcome-uris))
                      (spo-each (trig/iri :ontology "has_group") (keys group-info)))
-        triples (concat [study-rdf] mms-rdf baseline-rdf outcomes-rdf events-rdf groups-rdf measurements-rdf)]
+        triples (concat [study-rdf registration] mms-rdf baseline-rdf outcomes-rdf events-rdf groups-rdf measurements-rdf)]
     (trig/write-ttl prefixes triples)))
 
 (defn -main
