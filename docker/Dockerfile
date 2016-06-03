@@ -18,6 +18,6 @@ ENV PATH /var/lib/webapp/bin:$PATH
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-ADD ctgov-import-0.1.0-standalone.jar .
+ADD ctgov-import-0.1.1-standalone.jar ctgov-import.jar
 
-CMD java -jar ctgov-import-0.1.0-standalone.jar
+CMD java -jar ctgov-import.jar
