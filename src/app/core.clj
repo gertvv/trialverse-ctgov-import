@@ -467,7 +467,9 @@
 
                      (allocation-rdf (design "Allocation"))
                      (blinding-rdf (design "Masking"))
+                     (spo-each (trig/iri :ontology "has_outcome") (vals baseline-uris))
                      (spo-each (trig/iri :ontology "has_outcome") (vals outcome-uris))
+                     (spo-each (trig/iri :ontology "has_outcome") (vals event-uris))
                      (spo-each (trig/iri :ontology "has_group") (keys group-info)))
         triples (concat [study-rdf registration] mms-rdf baseline-rdf outcomes-rdf events-rdf groups-rdf measurements-rdf)]
     (trig/write-ttl prefixes triples)))
