@@ -60,10 +60,10 @@
 (defroutes app-routes
   (GET "/" [id] { :status 200
                   :body "Go to /NCTXXXXXXXX." })
-  (GET "/:id" [id] { :status 200
+  (GET "/:id{NCT[0-9]+}" [id] { :status 200
                      :headers { "Content-Type" "application/json" }
                      :body (json/write-str (basic-info id))})
-  (GET "/:id/rdf" [id] { :status 200
+  (GET "/:id{NCT[0-9]+}/rdf" [id] { :status 200
                          :headers { "Content-Type" "text/turtle" }
                          :body (do-import id) })
     (route/not-found "Not Found"))
