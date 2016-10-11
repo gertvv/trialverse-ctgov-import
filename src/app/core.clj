@@ -14,8 +14,9 @@
 
 (defn row-label-sample-size
   [label]
-  (let [m (re-find #"(?i)\Wn\s*=\s*(\d*)([,;]\s*(\d*))*" label)
-        s (map #(Integer/parseInt %) (remove nil? (take-nth 2 (rest m))))]
+  (let [m1 (second (re-find #"(?i)\W(n\s*=\s*(\d+)([,;](\s*n\s*=)?\s*(\d+))*)" label))
+        m2 (if m1 (re-seq #"\d+" m1) [])
+        s (map #(Integer/parseInt %) (remove nil? m2))]
     s))
 
 (defn measurement-row-info
