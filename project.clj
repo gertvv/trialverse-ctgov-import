@@ -7,10 +7,11 @@
                  [org.clojure/clojure "1.5.1"]
                  [riveted "0.0.9"]
                  [instaparse "1.4.1"]
-                 [addis-rdf "0.1.0"]
+                 [org.drugis.addis/rdfexport "1.0.1"]
                  [compojure "1.3.1"]
                  [ring/ring-defaults "0.1.2"]
                  [org.clojure/data.json "0.2.6"]]
+  :repositories [["drugis.org" "https://drugis.org/mvn"]]
   :plugins [[lein-ring "0.8.13"]]
   :ring {:handler app.handler/app}
   :main app.core
