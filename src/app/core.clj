@@ -312,10 +312,11 @@
 (defn measurement-data-rdf-categorical
   [subj measure-xml group-id category-uris]
   (let [categories-xml (vtd/search measure-xml "./category_list/category")
-        measurement-query (format "./measurement_list/measurement[@group_id=\"%s\"]" group-id)]
+        measurement-query (format "./measurement_list/measurement[@group_id=\"%s\"]" group-id)
+        cond-count (fn [subj value] (if value (trig/spo subj [(trig/iri :ontology "count") (parse-int value)]) subj))]
     (reduce #(trig/spo %1 [(trig/iri :ontology "category_count")
-                           (trig/_po [(trig/iri :ontology "category") (category-uris (vtd/text (vtd/at %2 "./sub_title")))]
-                                     [(trig/iri :ontology "count") (vtd/attr (vtd/at %2 measurement-query) :value)])])
+                           (-> (trig/_po [(trig/iri :ontology "category") (category-uris (vtd/text (vtd/at %2 "./sub_title")))])
+                               (cond-count (vtd/attr (vtd/at %2 measurement-query) :value)))])
             subj
             categories-xml)))
 
