@@ -3,7 +3,7 @@
     [clojure.java.io :refer [as-file]]
     [clojure.string :refer [lower-case]]
     [clojure.set :refer [map-invert]]
-    [app.design-parse :refer [design-as-map]]
+    [app.design-parse :refer [design-as-map parse-masking]]
     [riveted.core :as vtd]
     [org.drugis.addis.rdf.trig :as trig]))
 
@@ -466,7 +466,6 @@
                            (apply concat (map #(baseline-measurements %1 %2 baseline-sample-size-xml baseline-uris group-uris mm-uris category-uris) baseline-var-xml (iterate inc 1)))
                            (apply concat (map #(outcome-measurements %1 %2 outcome-uris group-uris mm-uris) outcome-xml (iterate inc 1)))
                            (apply concat (map #(event-measurements %1 %2 event-uris group-uris mm-uris) event-xml (iterate inc 1))))
-        design (design-as-map (vtd/text (vtd/at xml "/clinical_study/study_design")))
         study-rdf (-> uri
                      (trig/spo [(trig/iri :ontology "has_publication") reg-uri]
                                [(trig/iri :rdf "type") (trig/iri :ontology "Study")]
@@ -477,8 +476,8 @@
                                [(trig/iri :ontology "has_eligibility_criteria")
                                 (trig/_po [(trig/iri :rdfs "comment") (trig/lit (vtd/text (vtd/at xml "/clinical_study/eligibility/criteria/textblock")))])])
 
-                     (allocation-rdf (design "Allocation"))
-                     (blinding-rdf (design "Masking"))
+                     (allocation-rdf (vtd/text (vtd/at xml "/clinical_study/study_design_info/allocation")))
+                     (blinding-rdf (parse-masking (vtd/text (vtd/at xml "/clinical_study/study_design_info/masking"))))
                      (spo-each (trig/iri :ontology "has_outcome") (vals baseline-uris))
                      (spo-each (trig/iri :ontology "has_outcome") (vals outcome-uris))
                      (spo-each (trig/iri :ontology "has_outcome") (vals event-uris))
