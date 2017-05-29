@@ -2,6 +2,15 @@
   (:use clojure.test)
   (:use app.design-parse))
 
+(deftest test-masking-parser-double-blind
+  (is (= (parse-masking "Double Blind (Participant, Investigator, Outcomes Assessor)")
+         ["Double Blind" "Participant" "Investigator", "Outcomes Assessor"]  )))
+
+(deftest test-masking-parser-single-blind-single-spec
+  (is (= (parse-masking "Single Blind (Outcomes Assessor)")
+         ["Single Blind" "Outcomes Assessor"])))
+
+; tests for old design parser
 (deftest example1
   (is (= (parse "Allocation: Randomized, Intervention Model: Parallel Assignment, Masking: Double Blind (Subject, Caregiver, Investigator, Outcomes Assessor), Primary Purpose: Treatment")
          [:design
